@@ -1,20 +1,23 @@
 public class Test {
-    static final Object lock = new Object();
-
+    static Object lock = new Object();
     public static void main(String[] args) throws InterruptedException {
 
         Worker worker = new Worker();
-        Thread clocker = new Thread(new Clock(worker));
-        Thread messenger = new Thread(new Messanger(worker));
-        clocker.start();
-        messenger.start();
+        Thread clock = new Thread(new Worker.Clock(worker));
+        clock.start();
+        Thread message = new Thread(new Worker.Messenger(worker));
+        message.start();
+
+
     }
+
 }
+
 
 class Worker {
     int seconds = 0;
 
-    public void clock() {
+    public void Clock() {
         synchronized (Test.lock) {
             System.out.println(seconds);
             try {
@@ -24,7 +27,7 @@ class Worker {
             }
             seconds++;
 
-            while (seconds % 5 == 0) {
+            if (seconds % 5 == 0) {
                 try {
                     System.out.println(seconds);
                     Test.lock.wait();
@@ -32,8 +35,11 @@ class Worker {
                     throw new RuntimeException(e);
                 }
             }
+
             Test.lock.notify();
-            while (seconds % 7 == 0){
+
+            if (seconds % 7 == 0) {
+
                 try {
                     System.out.println(seconds);
                     Test.lock.wait();
@@ -41,13 +47,16 @@ class Worker {
                     throw new RuntimeException(e);
                 }
             }
+
             Test.lock.notify();
+
         }
+
     }
 
-    public void fiveSecMessage() {
+    public void message() {
         synchronized (Test.lock) {
-            while (seconds % 5 != 0) {
+            if (seconds % 5 != 0) {
                 try {
                     Test.lock.wait();
                 } catch (InterruptedException e) {
@@ -56,64 +65,62 @@ class Worker {
             }
             seconds++;
             System.out.println("every-5-sec-message");
+
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
             Test.lock.notify();
-        }
-    }
 
-    public void sevenSecMessage() {
-        synchronized (Test.lock) {
-            while (seconds % 7 != 0) {
+            if (seconds % 7 != 0) {
                 try {
                     Test.lock.wait();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                seconds++;
-                System.out.println("every-7-sec-message");
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                Test.lock.notify();
+            }
+            seconds++;
+            System.out.println("every-7-sec-message");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            Test.lock.notify();
+
+        }
+
+    }
+
+
+    static class Clock implements Runnable {
+        Worker worker;
+
+        public Clock(Worker worker) {
+            this.worker = worker;
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                worker.Clock();
             }
         }
     }
-}
 
+    static class Messenger implements Runnable {
+        Worker worker;
 
-class Clock implements Runnable {
-    Worker worker;
-
-    public Clock(Worker worker) {
-        this.worker = worker;
-    }
-
-    @Override
-    public void run() {
-        while (true) {
-            worker.clock();
+        public Messenger(Worker worker) {
+            this.worker = worker;
         }
-    }
-}
 
-class Messanger implements Runnable {
-    Worker worker;
-
-    public Messanger(Worker worker) {
-        this.worker = worker;
-    }
-
-    @Override
-    public void run() {
-        while (true) {
-            worker.fiveSecMessage();
-            worker.sevenSecMessage();
+        @Override
+        public void run() {
+            while (true) {
+                worker.message();
+            }
         }
     }
 }
